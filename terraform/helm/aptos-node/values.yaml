@@ -1,13 +1,13 @@
 chain:
   # -- Internal: name of the testnet to connect to
-  name: testnet
+  name: mainnet
   # -- Bump this number to wipe the underlying storage
   era: 1
   # -- Chain ID
-  chain_id: 4
+  chain_id: 1
 
 # -- Default image tag to use for all validator and fullnode images
-imageTag: devnet
+imageTag: mainnet
 
 # -- Number of validators to deploy
 numValidators: 1

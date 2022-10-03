@@ -14,11 +14,12 @@ Aptos blockchain node deployment
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| chain.chain_id | int | `4` | Chain ID |
+| chain.chain_id | int | `1` | Chain ID |
 | chain.era | int | `1` | Bump this number to wipe the underlying storage |
-| chain.name | string | `"testnet"` | Internal: name of the testnet to connect to |
+| chain.name | string | `"mainnet"` | Internal: name of the testnet to connect to |
 | fullnode.affinity | object | `{}` |  |
-| fullnode.config | object | `{"api":{},"base":{},"consensus":{},"execution":{},"failpoints":{},"firehose_stream":{},"full_node_networks":[{"discovery_method":"onchain","enable_proxy_protocol":false,"identity":{"path":"/opt/aptos/genesis/validator-full-node-identity.yaml","type":"from_file"},"listen_address":"/ip4/0.0.0.0/tcp/6182","max_inbound_connections":100,"network_id":"public","seeds":{}}],"inspection_service":{},"logger":{},"mempool":{"default_failovers":0,"max_broadcasts_per_peer":4,"shared_mempool_batch_size":200,"shared_mempool_max_concurrent_inbound_syncs":16,"shared_mempool_tick_interval_ms":10},"metrics":{},"peer_monitoring_service":{},"state_sync":{},"storage":{},"test":{},"validator_network":{}}` | Fullnode configuration. See NodeConfig https://github.com/aptos-labs/aptos-core/blob/main/config/src/config/mod.rs |
+| fullnode.config | object | `{"full_node_networks":[{"max_inbound_connections":100,"network_id":"public","seeds":{}}],"mempool":{"default_failovers":0,"max_broadcasts_per_peer":4,"shared_mempool_batch_size":200,"shared_mempool_max_concurrent_inbound_syncs":16,"shared_mempool_tick_interval_ms":10}}` | Fullnode configuration. See NodeConfig https://github.com/aptos-labs/aptos-core/blob/main/config/src/config/mod.rs |
+| fullnode.force_enable_telemetry | bool | `false` | Flag to force enable telemetry service (useful for forge tests) |
 | fullnode.groups | list | `[{"name":"fullnode","replicas":1}]` | Specify fullnode groups by `name` and number of `replicas` |
 | fullnode.nodeSelector | object | `{}` |  |
 | fullnode.resources.limits.cpu | float | `15.5` |  |
@@ -36,16 +37,19 @@ Aptos blockchain node deployment
 | haproxy.image.pullPolicy | string | `"IfNotPresent"` | Image pull policy to use for HAProxy images |
 | haproxy.image.repo | string | `"haproxy"` | Image repo to use for HAProxy images |
 | haproxy.image.tag | string | `"2.2.14@sha256:36aa98fff27dcb2d12c93e68515a6686378c783ea9b1ab1d01ce993a5cbc73e1"` | Image tag to use for HAProxy images |
-| haproxy.limits.validator.connectionsPerIPPerMin | int | `2` | Limit the number of connections per IP address per minute |
+| haproxy.limits.validator.connectionsPerIPPerMin | int | `2` | Limit the number of connections per IP address per sec |
+| haproxy.limits.validator.maxBytesOutRate10sec | int | `134217728` |  |
+| haproxy.limits.validator.rateLimitSession | int | `256` |  |
+| haproxy.limits.validator.tcpBufSize | int | `524288` |  |
 | haproxy.nodeSelector | object | `{}` |  |
 | haproxy.replicas | int | `1` | Number of HAProxy replicas |
-| haproxy.resources.limits.cpu | float | `1.5` |  |
-| haproxy.resources.limits.memory | string | `"2Gi"` |  |
-| haproxy.resources.requests.cpu | float | `1.5` |  |
-| haproxy.resources.requests.memory | string | `"2Gi"` |  |
+| haproxy.resources.limits.cpu | int | `4` |  |
+| haproxy.resources.limits.memory | string | `"8Gi"` |  |
+| haproxy.resources.requests.cpu | int | `4` |  |
+| haproxy.resources.requests.memory | string | `"8Gi"` |  |
 | haproxy.tls_secret | string | `nil` | Name of the Kubernetes TLS secret to use for HAProxy |
 | haproxy.tolerations | list | `[]` |  |
-| imageTag | string | `"devnet"` | Default image tag to use for all validator and fullnode images |
+| imageTag | string | `"mainnet"` | Default image tag to use for all validator and fullnode images |
 | labels | string | `nil` |  |
 | loadTestGenesis | bool | `false` | Load test-data for starting a test network |
 | numFullnodeGroups | int | `1` | Total number of fullnode groups to deploy |
@@ -55,19 +59,22 @@ Aptos blockchain node deployment
 | service.domain | string | `nil` | If set, the base domain name to use for External DNS |
 | service.fullnode.enableMetricsPort | bool | `true` | Enable the metrics port on fullnodes |
 | service.fullnode.enableRestApi | bool | `true` | Enable the REST API on fullnodes |
-| service.fullnode.external.type | string | `"LoadBalancer"` | The Kubernetes ServiceType to use for fullnodes |
+| service.fullnode.external.type | string | `"LoadBalancer"` | The Kubernetes ServiceType to use for fullnodes' HAProxy |
 | service.fullnode.externalTrafficPolicy | string | `"Local"` | The externalTrafficPolicy for the fullnode service |
+| service.fullnode.internal.type | string | `"ClusterIP"` | The Kubernetes ServiceType to use for fullnodes |
 | service.fullnode.loadBalancerSourceRanges | string | `nil` | If set and if the ServiceType is LoadBalancer, allow traffic to fullnodes from these CIDRs |
 | service.validator.enableMetricsPort | bool | `true` | Enable the metrics port on the validator |
 | service.validator.enableRestApi | bool | `true` | Enable the REST API on the validator |
-| service.validator.external.type | string | `"LoadBalancer"` | The Kubernetes ServiceType to use for validator |
+| service.validator.external.type | string | `"LoadBalancer"` | The Kubernetes ServiceType to use for validator's HAProxy |
 | service.validator.externalTrafficPolicy | string | `"Local"` | The externalTrafficPolicy for the validator service |
+| service.validator.internal.type | string | `"ClusterIP"` | The Kubernetes ServiceType to use for validator |
 | service.validator.loadBalancerSourceRanges | string | `nil` | If set and if the ServiceType is LoadBalancer, allow traffic to validators from these CIDRs |
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created |
 | serviceAccount.name | string | `nil` | The name of the service account to use. If not set and create is true, a name is generated using the fullname template |
 | validator.affinity | object | `{}` |  |
-| validator.config | object | `{"api":{},"base":{},"consensus":{},"execution":{},"failpoints":{},"firehose_stream":{},"full_node_networks":[],"inspection_service":{},"logger":{},"mempool":{"default_failovers":0,"max_broadcasts_per_peer":2,"shared_mempool_max_concurrent_inbound_syncs":16},"metrics":{},"peer_monitoring_service":{},"state_sync":{},"storage":{},"test":{},"validator_network":{}}` | Validator configuration. See NodeConfig https://github.com/aptos-labs/aptos-core/blob/main/config/src/config/mod.rs |
+| validator.config | object | `{}` | Validator configuration. See NodeConfig https://github.com/aptos-labs/aptos-core/blob/main/config/src/config/mod.rs |
 | validator.enableNetworkPolicy | bool | `true` | Lock down network ingress and egress with Kubernetes NetworkPolicy |
+| validator.force_enable_telemetry | bool | `false` | Flag to force enable telemetry service (useful for forge tests) |
 | validator.image.pullPolicy | string | `"IfNotPresent"` | Image pull policy to use for validator images |
 | validator.image.repo | string | `"aptoslabs/validator"` | Image repo to use for validator images |
 | validator.image.tag | string | `nil` | Image tag to use for validator images. If set, overrides `imageTag` |

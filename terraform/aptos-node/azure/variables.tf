@@ -10,12 +10,12 @@ variable "era" {
 
 variable "chain_id" {
   description = "Aptos chain ID"
-  default     = "TESTING"
+  default     = "1"
 }
 
 variable "chain_name" {
   description = "Aptos chain name"
-  default     = "testnet"
+  default     = "mainnet"
 }
 
 variable "validator_name" {
