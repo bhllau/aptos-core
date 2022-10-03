@@ -62,8 +62,8 @@ variable "era" {
 }
 
 variable "chain_id" {
-  description = "aptos chain ID"
-  default     = "DEVNET"
+  description = "Aptos chain ID"
+  default     = "1"
 }
 
 variable "machine_type" {
