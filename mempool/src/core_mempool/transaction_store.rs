@@ -1,14 +1,16 @@
 // Copyright (c) Aptos
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::core_mempool::index::MultiBucketTimelineIndex;
 use crate::counters::{
     BROADCAST_BATCHED_LABEL, BROADCAST_READY_LABEL, CONSENSUS_READY_LABEL, E2E_LABEL, LOCAL_LABEL,
 };
 use crate::shared_mempool::types::TimelineId;
 use crate::{
     core_mempool::{
-        index::{AccountTransactions, ParkingLotIndex, PriorityIndex, PriorityQueueIter, TTLIndex},
+        index::{
+            AccountTransactions, MultiBucketTimelineIndex, ParkingLotIndex, PriorityIndex,
+            PriorityQueueIter, TTLIndex,
+        },
         transaction::{MempoolTransaction, TimelineState},
     },
     counters,
