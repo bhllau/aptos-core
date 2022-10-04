@@ -348,9 +348,6 @@ impl MultiBucketTimelineIndex {
         }
         size
     }
-
-    // TODO: corner case if the same txn is added with updated ranking_score
-    // TODO: this looks fine, but let's explicitly test for it to avoid regressions
 }
 
 /// ParkingLotIndex keeps track of "not_ready" transactions, e.g., transactions that

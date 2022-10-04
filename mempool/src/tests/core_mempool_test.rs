@@ -10,6 +10,7 @@ use aptos_config::config::NodeConfig;
 use aptos_crypto::HashValue;
 use aptos_types::mempool_status::MempoolStatusCode;
 use aptos_types::{account_config::AccountSequenceInfo, transaction::SignedTransaction};
+use itertools::Itertools;
 use std::time::SystemTime;
 use std::{collections::HashSet, time::Duration};
 
@@ -240,6 +241,13 @@ fn test_reset_sequence_number_on_failure() {
     assert!(add_txn(&mut pool, TestTransaction::new(1, 0, 1)).is_ok());
 }
 
+fn view(txns: Vec<SignedTransaction>) -> Vec<u64> {
+    txns.iter()
+        .map(SignedTransaction::sequence_number)
+        .sorted()
+        .collect()
+}
+
 #[test]
 fn test_timeline() {
     let mut pool = setup_mempool().0;
@@ -252,11 +260,7 @@ fn test_timeline() {
             TestTransaction::new(1, 5, 1),
         ],
     );
-    let view = |txns: Vec<SignedTransaction>| -> Vec<u64> {
-        txns.iter()
-            .map(SignedTransaction::sequence_number)
-            .collect()
-    };
+
     let (timeline, _) = pool.read_timeline(&vec![0].into(), 10);
     assert_eq!(view(timeline), vec![0, 1]);
     // Txns 3 and 5 should be in parking lot.
@@ -293,12 +297,7 @@ fn test_multi_bucket_timeline() {
             TestTransaction::new(1, 5, 300), // bucket 2
         ],
     );
-    // TODO: different implementations may not sort the same way
-    let view = |txns: Vec<SignedTransaction>| -> Vec<u64> {
-        txns.iter()
-            .map(SignedTransaction::sequence_number)
-            .collect()
-    };
+
     let (timeline, _) = pool.read_timeline(&vec![0, 0, 0].into(), 10);
     assert_eq!(view(timeline), vec![0, 1]);
     // Txns 3 and 5 should be in parking lot.
@@ -333,6 +332,67 @@ fn test_multi_bucket_timeline() {
     assert_eq!(view(timeline), vec![5]);
     // check parking lot is empty
     assert_eq!(0, pool.get_parking_lot_size());
+}
+
+#[test]
+fn test_multi_bucket_gas_ranking_update() {
+    let mut pool = setup_mempool_with_broadcast_buckets(vec![0, 101, 201]).0;
+    add_txns_to_mempool(
+        &mut pool,
+        vec![
+            TestTransaction::new(1, 0, 1),   // bucket 0
+            TestTransaction::new(1, 1, 100), // bucket 0
+            TestTransaction::new(1, 2, 200), // bucket 1
+            TestTransaction::new(1, 3, 300), // bucket 2
+        ],
+    );
+
+    // read only bucket 2
+    let (timeline, _) = pool.read_timeline(&vec![10, 10, 0].into(), 10);
+    assert_eq!(view(timeline), vec![3]);
+
+    // resubmit with higher gas: move txn 2 to bucket 2
+    add_txns_to_mempool(&mut pool, vec![TestTransaction::new(1, 2, 400)]);
+
+    // read only bucket 2
+    let (timeline, _) = pool.read_timeline(&vec![10, 10, 0].into(), 10);
+    assert_eq!(view(timeline), vec![2, 3]);
+    // read only bucket 1
+    let (timeline, _) = pool.read_timeline(&vec![10, 0, 10].into(), 10);
+    assert!(view(timeline).is_empty());
+}
+
+#[test]
+fn test_multi_bucket_removal() {
+    let mut pool = setup_mempool_with_broadcast_buckets(vec![0, 101, 201]).0;
+    add_txns_to_mempool(
+        &mut pool,
+        vec![
+            TestTransaction::new(1, 0, 1),   // bucket 0
+            TestTransaction::new(1, 1, 100), // bucket 0
+            TestTransaction::new(1, 2, 300), // bucket 2
+            TestTransaction::new(1, 3, 200), // bucket 1
+        ],
+    );
+
+    let (timeline, _) = pool.read_timeline(&vec![0, 0, 0].into(), 10);
+    assert_eq!(view(timeline), vec![0, 1, 2, 3]);
+
+    pool.remove_transaction(&TestTransaction::get_address(1), 0, false);
+    let (timeline, _) = pool.read_timeline(&vec![0, 0, 0].into(), 10);
+    assert_eq!(view(timeline), vec![1, 2, 3]);
+
+    pool.remove_transaction(&TestTransaction::get_address(1), 1, false);
+    let (timeline, _) = pool.read_timeline(&vec![0, 0, 0].into(), 10);
+    assert_eq!(view(timeline), vec![2, 3]);
+
+    pool.remove_transaction(&TestTransaction::get_address(1), 2, false);
+    let (timeline, _) = pool.read_timeline(&vec![0, 0, 0].into(), 10);
+    assert_eq!(view(timeline), vec![3]);
+
+    pool.remove_transaction(&TestTransaction::get_address(1), 3, false);
+    let (timeline, _) = pool.read_timeline(&vec![0, 0, 0].into(), 10);
+    assert!(view(timeline).is_empty());
 }
 
 #[test]
