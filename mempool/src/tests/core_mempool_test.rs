@@ -326,6 +326,10 @@ fn test_multi_bucket_timeline() {
     let (timeline, _) = pool.read_timeline(&vec![3, 1, 0].into(), 10);
     assert!(view(timeline).is_empty());
 
+    // Ensure high gas is prioritized.
+    let (timeline, _) = pool.read_timeline(&vec![0, 0, 0].into(), 1);
+    assert_eq!(view(timeline), vec![3]);
+
     // Simulate callback from consensus to unblock txn 5.
     pool.remove_transaction(&TestTransaction::get_address(1), 4, false);
     let (timeline, _) = pool.read_timeline(&vec![0, 0, 0].into(), 10);
@@ -342,24 +346,33 @@ fn test_multi_bucket_gas_ranking_update() {
         vec![
             TestTransaction::new(1, 0, 1),   // bucket 0
             TestTransaction::new(1, 1, 100), // bucket 0
-            TestTransaction::new(1, 2, 200), // bucket 1
-            TestTransaction::new(1, 3, 300), // bucket 2
+            TestTransaction::new(1, 2, 101), // bucket 1
+            TestTransaction::new(1, 3, 200), // bucket 1
         ],
     );
 
+    // txn 2 and 3 are prioritized
+    let (timeline, _) = pool.read_timeline(&vec![0, 0, 0].into(), 2);
+    assert_eq!(view(timeline), vec![2, 3]);
     // read only bucket 2
     let (timeline, _) = pool.read_timeline(&vec![10, 10, 0].into(), 10);
-    assert_eq!(view(timeline), vec![3]);
+    assert!(view(timeline).is_empty());
 
     // resubmit with higher gas: move txn 2 to bucket 2
     add_txns_to_mempool(&mut pool, vec![TestTransaction::new(1, 2, 400)]);
 
+    // txn 2 is now prioritized
+    let (timeline, _) = pool.read_timeline(&vec![0, 0, 0].into(), 1);
+    assert_eq!(view(timeline), vec![2]);
+    // then txn 3 is prioritized
+    let (timeline, _) = pool.read_timeline(&vec![0, 0, 0].into(), 2);
+    assert_eq!(view(timeline), vec![2, 3]);
     // read only bucket 2
     let (timeline, _) = pool.read_timeline(&vec![10, 10, 0].into(), 10);
-    assert_eq!(view(timeline), vec![2, 3]);
+    assert_eq!(view(timeline), vec![2]);
     // read only bucket 1
     let (timeline, _) = pool.read_timeline(&vec![10, 0, 10].into(), 10);
-    assert!(view(timeline).is_empty());
+    assert_eq!(view(timeline), vec![3]);
 }
 
 #[test]
