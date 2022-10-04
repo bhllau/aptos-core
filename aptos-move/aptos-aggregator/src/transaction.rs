@@ -97,7 +97,7 @@ impl ChangeSetExt {
 
         Ok(Self {
             delta_change_set: delta_set,
-            change_set: ChangeSet::new(write_set.freeze()?, events),
+            change_set: ChangeSet::new(write_set.freeze()?, events)?,
         })
     }
 
@@ -141,7 +141,7 @@ impl ChangeSetExt {
 
         Ok(Self {
             delta_change_set: delta,
-            change_set: ChangeSet::new(write_set.freeze()?, events),
+            change_set: ChangeSet::new(write_set.freeze()?, events)?,
         })
     }
 
